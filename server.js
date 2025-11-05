@@ -3,6 +3,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const path = require("path");
 const connectDB = require("./config/db");
+const fs = require("fs");
 
 // Load environment variables
 dotenv.config();
@@ -13,14 +14,25 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(
-  cors({
-    origin: ["https://your-frontend-domain.com"],
-    methods: "GET,POST,PUT,DELETE",
-  })
-);
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Ensure upload directories exist
+const uploadDirs = [
+  "sermons",
+  "events",
+  "ministries",
+  "gallery",
+  "about",
+  "about/leaders",
+];
+uploadDirs.forEach((dir) => {
+  const dirPath = path.join(__dirname, "uploads", dir);
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+});
 
 // Serve uploaded files
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -33,6 +45,7 @@ app.use("/api/ministries", require("./routes/ministries"));
 app.use("/api/gallery", require("./routes/gallery"));
 app.use("/api/homepage", require("./routes/homepage"));
 app.use("/api/contact", require("./routes/contact"));
+app.use("/api/about", require("./routes/about"));
 
 // Health check
 app.get("/api/health", (req, res) => {
