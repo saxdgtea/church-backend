@@ -3,6 +3,15 @@ const router = express.Router();
 const Gallery = require("../models/Gallery");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/upload");
+const { getImageUrl } = require("../config/config");
+
+const formatGallery = (gallery) => {
+  const galleryObj = gallery.toObject ? gallery.toObject() : gallery;
+  return {
+    ...galleryObj,
+    images: galleryObj.images.map((img) => getImageUrl(img)),
+  };
+};
 
 // @route   GET /api/gallery
 // @desc    Get all gallery albums
@@ -10,7 +19,8 @@ const upload = require("../middleware/upload");
 router.get("/", async (req, res) => {
   try {
     const albums = await Gallery.find().sort({ createdAt: -1 });
-    res.json(albums);
+    const formattedAlbums = albums.map(formatGallery);
+    res.json(formattedAlbums);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -25,7 +35,7 @@ router.get("/:id", async (req, res) => {
     if (!album) {
       return res.status(404).json({ message: "Album not found" });
     }
-    res.json(album);
+    res.json(formatGallery(album));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -42,7 +52,7 @@ router.post("/", auth, async (req, res) => {
     });
 
     const savedAlbum = await album.save();
-    res.status(201).json(savedAlbum);
+    res.status(201).json(formatGallery(savedAlbum));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -63,7 +73,7 @@ router.put("/:id", auth, async (req, res) => {
       return res.status(404).json({ message: "Album not found" });
     }
 
-    res.json(album);
+    res.json(formatGallery(album));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -89,8 +99,9 @@ router.post(
       album.images.push(...imagePaths);
       await album.save();
 
-      res.json(album);
+      res.json(formatGallery(album));
     } catch (error) {
+      console.error("Error uploading images:", error);
       res.status(400).json({ message: error.message });
     }
   }
@@ -110,8 +121,9 @@ router.delete("/:id/images", auth, async (req, res) => {
     album.images = album.images.filter((img) => img !== imagePath);
     await album.save();
 
-    res.json(album);
+    res.json(formatGallery(album));
   } catch (error) {
+    console.error("Error deleting image:", error);
     res.status(400).json({ message: error.message });
   }
 });
@@ -127,6 +139,7 @@ router.delete("/:id", auth, async (req, res) => {
     }
     res.json({ message: "Album deleted successfully" });
   } catch (error) {
+    console.error("Error deleting album:", error);
     res.status(500).json({ message: error.message });
   }
 });

@@ -3,6 +3,22 @@ const router = express.Router();
 const About = require("../models/About");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/upload");
+const { getImageUrl } = require("../config/config");
+
+const formatAbout = (about) => {
+  const aboutObj = about.toObject ? about.toObject() : about;
+  return {
+    ...aboutObj,
+    heroImage: getImageUrl(aboutObj.heroImage),
+    storyImage: getImageUrl(aboutObj.storyImage),
+    missionImage: getImageUrl(aboutObj.missionImage),
+    visionImage: getImageUrl(aboutObj.visionImage),
+    leaders: aboutObj.leaders.map((leader) => ({
+      ...(leader.toObject ? leader.toObject() : leader),
+      image: getImageUrl(leader.image),
+    })),
+  };
+};
 
 // @route   GET /api/about
 // @desc    Get about page content
@@ -82,7 +98,7 @@ router.get("/", async (req, res) => {
       await about.save();
     }
 
-    res.json(about);
+    res.json(formatAbout(about));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -117,7 +133,7 @@ router.put("/", auth, async (req, res) => {
     }
 
     await about.save();
-    res.json(about);
+    res.json(formatAbout(about));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -138,7 +154,7 @@ router.post("/upload/hero", auth, upload.single("image"), async (req, res) => {
       await about.save();
     }
 
-    res.json(about);
+    res.json(formatAbout(about));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -159,7 +175,7 @@ router.post("/upload/story", auth, upload.single("image"), async (req, res) => {
       await about.save();
     }
 
-    res.json(about);
+    res.json(formatAbout(about));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -184,7 +200,7 @@ router.post(
         await about.save();
       }
 
-      res.json(about);
+      res.json(formatAbout(about));
     } catch (error) {
       res.status(400).json({ message: error.message });
     }
@@ -210,7 +226,7 @@ router.post(
         await about.save();
       }
 
-      res.json(about);
+      res.json(formatAbout(about));
     } catch (error) {
       res.status(400).json({ message: error.message });
     }
@@ -244,9 +260,11 @@ router.post("/leaders", auth, upload.single("image"), async (req, res) => {
         (l) => l._id.toString() === req.body.leaderId
       );
       if (leaderIndex !== -1) {
+        const existingLeader = about.leaders[leaderIndex];
         about.leaders[leaderIndex] = {
-          ...about.leaders[leaderIndex].toObject(),
+          ...existingLeader.toObject(),
           ...leaderData,
+          _id: existingLeader._id,
         };
       }
     } else {
@@ -255,7 +273,7 @@ router.post("/leaders", auth, upload.single("image"), async (req, res) => {
     }
 
     await about.save();
-    res.json(about);
+    res.json(formatAbout(about));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -276,7 +294,7 @@ router.delete("/leaders/:leaderId", auth, async (req, res) => {
     );
     await about.save();
 
-    res.json(about);
+    res.json(formatAbout(about));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

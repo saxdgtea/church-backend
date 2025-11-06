@@ -1,104 +1,115 @@
 const express = require("express");
 const router = express.Router();
-const Event = require("../models/Event");
+const Ministry = require("../models/Ministry");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/upload");
+const { getImageUrl } = require("../config/config");
 
-// @route   GET /api/events
-// @desc    Get all events
+const formatMinistry = (ministry) => {
+  const ministryObj = ministry.toObject ? ministry.toObject() : ministry;
+  return {
+    ...ministryObj,
+    image: getImageUrl(ministryObj.image),
+  };
+};
+
+// @route   GET /api/ministries
+// @desc    Get all ministries
 // @access  Public
 router.get("/", async (req, res) => {
   try {
-    const limit = req.query.limit ? parseInt(req.query.limit) : 0;
-    const events = await Event.find().sort({ date: -1 }).limit(limit);
-    res.json(events);
+    const ministries = await Ministry.find().sort({ createdAt: -1 });
+    const formattedMinistries = ministries.map(formatMinistry);
+    res.json(formattedMinistries);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// @route   GET /api/events/:id
-// @desc    Get single event
+// @route   GET /api/ministries/:id
+// @desc    Get single ministry
 // @access  Public
 router.get("/:id", async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id);
-    if (!event) {
-      return res.status(404).json({ message: "Event not found" });
+    const ministry = await Ministry.findById(req.params.id);
+    if (!ministry) {
+      return res.status(404).json({ message: "Ministry not found" });
     }
-    res.json(event);
+    res.json(formatMinistry(ministry));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// @route   POST /api/events
-// @desc    Create event
+// @route   POST /api/ministries
+// @desc    Create ministry
 // @access  Private
 router.post("/", auth, upload.single("image"), async (req, res) => {
   try {
-    const eventData = {
-      title: req.body.title,
-      date: req.body.date,
-      time: req.body.time,
-      location: req.body.location,
+    const ministryData = {
+      name: req.body.name,
       description: req.body.description,
+      contact: req.body.contact,
     };
 
     if (req.file) {
-      eventData.image = "/uploads/events/" + req.file.filename;
+      ministryData.image = "/uploads/ministries/" + req.file.filename;
     }
 
-    const event = new Event(eventData);
-    const savedEvent = await event.save();
-    res.status(201).json(savedEvent);
+    const ministry = new Ministry(ministryData);
+    const savedMinistry = await ministry.save();
+    res.status(201).json(formatMinistry(savedMinistry));
   } catch (error) {
+    console.error("Error creating ministry:", error);
     res.status(400).json({ message: error.message });
   }
 });
 
-// @route   PUT /api/events/:id
-// @desc    Update event
+// @route   PUT /api/ministries/:id
+// @desc    Update ministry
 // @access  Private
 router.put("/:id", auth, upload.single("image"), async (req, res) => {
   try {
+    const ministry = await Ministry.findById(req.params.id);
+    if (!ministry) {
+      return res.status(404).json({ message: "Ministry not found" });
+    }
+
     const updateData = {
-      title: req.body.title,
-      date: req.body.date,
-      time: req.body.time,
-      location: req.body.location,
+      name: req.body.name,
       description: req.body.description,
+      contact: req.body.contact,
     };
 
     if (req.file) {
-      updateData.image = "/uploads/events/" + req.file.filename;
+      updateData.image = "/uploads/ministries/" + req.file.filename;
     }
 
-    const event = await Event.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-    });
+    const updatedMinistry = await Ministry.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
 
-    if (!event) {
-      return res.status(404).json({ message: "Event not found" });
-    }
-
-    res.json(event);
+    res.json(formatMinistry(updatedMinistry));
   } catch (error) {
+    console.error("Error updating ministry:", error);
     res.status(400).json({ message: error.message });
   }
 });
 
-// @route   DELETE /api/events/:id
-// @desc    Delete event
+// @route   DELETE /api/ministries/:id
+// @desc    Delete ministry
 // @access  Private
 router.delete("/:id", auth, async (req, res) => {
   try {
-    const event = await Event.findByIdAndDelete(req.params.id);
-    if (!event) {
-      return res.status(404).json({ message: "Event not found" });
+    const ministry = await Ministry.findByIdAndDelete(req.params.id);
+    if (!ministry) {
+      return res.status(404).json({ message: "Ministry not found" });
     }
-    res.json({ message: "Event deleted successfully" });
+    res.json({ message: "Ministry deleted successfully" });
   } catch (error) {
+    console.error("Error deleting ministry:", error);
     res.status(500).json({ message: error.message });
   }
 });

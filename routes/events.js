@@ -3,6 +3,15 @@ const router = express.Router();
 const Event = require("../models/Event");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/upload");
+const { getImageUrl } = require("../config/config");
+
+const formatEvent = (event) => {
+  const eventObj = event.toObject ? event.toObject() : event;
+  return {
+    ...eventObj,
+    image: getImageUrl(eventObj.image),
+  };
+};
 
 // @route   GET /api/events
 // @desc    Get all events
@@ -11,7 +20,8 @@ router.get("/", async (req, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit) : 0;
     const events = await Event.find().sort({ date: -1 }).limit(limit);
-    res.json(events);
+    const formattedEvents = events.map(formatEvent);
+    res.json(formattedEvents);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -26,7 +36,7 @@ router.get("/:id", async (req, res) => {
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
     }
-    res.json(event);
+    res.json(formatEvent(event));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -51,8 +61,9 @@ router.post("/", auth, upload.single("image"), async (req, res) => {
 
     const event = new Event(eventData);
     const savedEvent = await event.save();
-    res.status(201).json(savedEvent);
+    res.status(201).json(formatEvent(savedEvent));
   } catch (error) {
+    console.error("Error creating event:", error);
     res.status(400).json({ message: error.message });
   }
 });
@@ -62,6 +73,11 @@ router.post("/", auth, upload.single("image"), async (req, res) => {
 // @access  Private
 router.put("/:id", auth, upload.single("image"), async (req, res) => {
   try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
     const updateData = {
       title: req.body.title,
       date: req.body.date,
@@ -74,16 +90,15 @@ router.put("/:id", auth, upload.single("image"), async (req, res) => {
       updateData.image = "/uploads/events/" + req.file.filename;
     }
 
-    const event = await Event.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-    });
+    const updatedEvent = await Event.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
 
-    if (!event) {
-      return res.status(404).json({ message: "Event not found" });
-    }
-
-    res.json(event);
+    res.json(formatEvent(updatedEvent));
   } catch (error) {
+    console.error("Error updating event:", error);
     res.status(400).json({ message: error.message });
   }
 });
@@ -99,6 +114,7 @@ router.delete("/:id", auth, async (req, res) => {
     }
     res.json({ message: "Event deleted successfully" });
   } catch (error) {
+    console.error("Error deleting event:", error);
     res.status(500).json({ message: error.message });
   }
 });

@@ -2,8 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const path = require("path");
-const connectDB = require("./config/db");
 const fs = require("fs");
+const connectDB = require("./config/db");
 
 // Load environment variables
 dotenv.config();
@@ -65,5 +65,8 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`API: http://localhost:${PORT}/api`);
-  console.log(`Uploads: http://localhost:${PORT}/uploads`);
+  console.log(`Base URL: ${process.env.BASE_URL || "http://localhost:5000"}`);
+  console.log(
+    `Uploads: ${process.env.BASE_URL || "http://localhost:5000"}/uploads`
+  );
 });

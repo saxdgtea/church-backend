@@ -3,6 +3,16 @@ const router = express.Router();
 const Sermon = require("../models/Sermon");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/upload");
+const { getImageUrl } = require("../config/config");
+
+// Helper function to format sermon with full image URL
+const formatSermon = (sermon) => {
+  const sermonObj = sermon.toObject ? sermon.toObject() : sermon;
+  return {
+    ...sermonObj,
+    image: getImageUrl(sermonObj.image),
+  };
+};
 
 // @route   GET /api/sermons
 // @desc    Get all sermons
@@ -11,7 +21,8 @@ router.get("/", async (req, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit) : 0;
     const sermons = await Sermon.find().sort({ date: -1 }).limit(limit);
-    res.json(sermons);
+    const formattedSermons = sermons.map(formatSermon);
+    res.json(formattedSermons);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -26,7 +37,7 @@ router.get("/:id", async (req, res) => {
     if (!sermon) {
       return res.status(404).json({ message: "Sermon not found" });
     }
-    res.json(sermon);
+    res.json(formatSermon(sermon));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -45,11 +56,9 @@ router.post("/:id/like", async (req, res) => {
     const { isLiked } = req.body;
 
     if (isLiked) {
-      // User is liking the sermon
       sermon.likes += 1;
     } else {
-      // User is unliking the sermon
-      sermon.likes = Math.max(0, sermon.likes - 1); // Prevent negative likes
+      sermon.likes = Math.max(0, sermon.likes - 1);
     }
 
     await sermon.save();
@@ -70,7 +79,7 @@ router.post("/", auth, upload.single("image"), async (req, res) => {
       scripture: req.body.scripture,
       description: req.body.description,
       youtubeUrl: req.body.youtubeUrl,
-      likes: 0, // Initialize likes to 0
+      likes: 0,
     };
 
     if (req.file) {
@@ -79,8 +88,9 @@ router.post("/", auth, upload.single("image"), async (req, res) => {
 
     const sermon = new Sermon(sermonData);
     const savedSermon = await sermon.save();
-    res.status(201).json(savedSermon);
+    res.status(201).json(formatSermon(savedSermon));
   } catch (error) {
+    console.error("Error creating sermon:", error);
     res.status(400).json({ message: error.message });
   }
 });
@@ -90,6 +100,11 @@ router.post("/", auth, upload.single("image"), async (req, res) => {
 // @access  Private
 router.put("/:id", auth, upload.single("image"), async (req, res) => {
   try {
+    const sermon = await Sermon.findById(req.params.id);
+    if (!sermon) {
+      return res.status(404).json({ message: "Sermon not found" });
+    }
+
     const updateData = {
       title: req.body.title,
       date: req.body.date,
@@ -102,16 +117,15 @@ router.put("/:id", auth, upload.single("image"), async (req, res) => {
       updateData.image = "/uploads/sermons/" + req.file.filename;
     }
 
-    const sermon = await Sermon.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-    });
+    const updatedSermon = await Sermon.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
 
-    if (!sermon) {
-      return res.status(404).json({ message: "Sermon not found" });
-    }
-
-    res.json(sermon);
+    res.json(formatSermon(updatedSermon));
   } catch (error) {
+    console.error("Error updating sermon:", error);
     res.status(400).json({ message: error.message });
   }
 });
@@ -127,6 +141,7 @@ router.delete("/:id", auth, async (req, res) => {
     }
     res.json({ message: "Sermon deleted successfully" });
   } catch (error) {
+    console.error("Error deleting sermon:", error);
     res.status(500).json({ message: error.message });
   }
 });
